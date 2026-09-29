@@ -31,7 +31,8 @@ try
         new XdtGenerationConfig(
             paramsConfig.IntersectMapping ?? appSettingsConfig.IntersectMapping ?? new Dictionary<string, IReadOnlyList<string>>(),
             SingleFile: paramsConfig.SingleFile ?? appSettingsConfig.SingleFile ?? false,
-            GenerateCustomApis: paramsConfig.GenerateCustomApis ?? appSettingsConfig.GenerateCustomApis ?? false),
+            GenerateCustomApis: paramsConfig.GenerateCustomApis ?? appSettingsConfig.GenerateCustomApis ?? false,
+            GenerateMappings: paramsConfig.GenerateMappings ?? appSettingsConfig.GenerateMappings ?? false),
         GeneratorKinds.Parse(paramsConfig.Generate ?? appSettingsConfig.Generate ?? []),
         new XrmQueryGenerationConfig(
             paramsConfig.WebNamespace ?? appSettingsConfig.WebNamespace ?? "XDT",
@@ -52,7 +53,14 @@ try
     var formSourceFactory = new DataverseMetadataSourceFactory(serviceClient);
     var entitySourceFactory = new DataverseEntityMetadataSourceFactory(serviceClient);
     var files = new List<GeneratedFile>();
-    var optionSets = new List<OptionSetModel>();
+
+    // Entity metadata is shared by both generators. Forms need it for precise option-set,
+    // lookup, date and numeric attribute/control types; web generation uses the same model.
+    Console.WriteLine($"Fetching entity metadata from {configuration["DATAVERSE_URL"]} ...");
+    var entities = await entitySourceFactory
+        .CreateEntityMetadataFetcher(MetadataSourceType.Dataverse, config.Fetch)
+        .FetchEntityMetadataAsync();
+    Console.WriteLine($"Fetched {entities.Count} entity/entities.");
 
     if (config.Generators.Contains(GeneratorKind.Forms))
     {
@@ -62,24 +70,26 @@ try
             .FetchMetadataAsync();
         Console.WriteLine($"Fetched {forms.Count} form(s).");
 
-        files.AddRange(new CodeGenerator().GenerateCode(forms, [], config.Generation));
+        files.AddRange(new CodeGenerator().GenerateCode(forms, entities, [], config.Generation));
     }
 
     if (config.Generators.Contains(GeneratorKind.Web))
-    {
-        Console.WriteLine($"Fetching entity metadata from {configuration["DATAVERSE_URL"]} ...");
-        var entities = await entitySourceFactory
-            .CreateEntityMetadataFetcher(MetadataSourceType.Dataverse, config.Fetch)
-            .FetchEntityMetadataAsync();
-        Console.WriteLine($"Fetched {entities.Count} entity/entities.");
-
         files.AddRange(new EntityTypesGenerator().Generate(entities, config.XrmQuery));
-        optionSets.AddRange(entities.SelectMany(entity => entity.OptionSets));
+
+    files.AddRange(new OptionSetGenerator().Generate(entities.SelectMany(entity => entity.OptionSets).ToList()));
+
+    if (config.Generation.SingleFile)
+    {
+        var runtimeFiles = files.Where(file => file.Filename.EndsWith(".ts", StringComparison.Ordinal) && !file.Filename.EndsWith(".d.ts", StringComparison.Ordinal)).ToList();
+        var declarations = files.Where(file => file.Filename.EndsWith(".d.ts", StringComparison.Ordinal)).ToList();
+        files =
+        [
+            .. runtimeFiles,
+            new GeneratedFile("context.d.ts", string.Join(Environment.NewLine, declarations.Select(file => file.Content))),
+        ];
     }
 
-    files.AddRange(new OptionSetGenerator().Generate(optionSets));
-
-    // A single write, since the output writer clears the output directory before writing.
+    // A single write, since the output writer removes only files from its previous manifest.
     var outputFiles = files.DistinctBy(file => file.Filename, StringComparer.Ordinal).ToList();
     Console.WriteLine($"Generated {outputFiles.Count} file(s).");
 

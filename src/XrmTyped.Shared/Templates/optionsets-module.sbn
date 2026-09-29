@@ -1,0 +1,21 @@
+/**
+ * Runtime values and exact numeric types for generated Dataverse option sets.
+ *
+ * Import the value whose members you need, for example:
+ * `import { {{ if OptionSets.size > 0 }}{{ OptionSets[0].Name }}{{ else }}MyOptionSet{{ end }} } from "./OptionSets";`
+ */
+{{~ for option_set in OptionSets ~}}
+
+export const {{ option_set.Name }} = {
+{{~ for option in option_set.Options ~}}
+  {{ option.Label }}: {{ option.Value }},
+{{~ end ~}}
+} as const;
+
+export type {{ option_set.Name }} =
+{{~ if option_set.Options.size == 0 ~}}
+  number;
+{{~ else ~}}
+  (typeof {{ option_set.Name }})[keyof typeof {{ option_set.Name }}];
+{{~ end ~}}
+{{~ end ~}}

@@ -1,8 +1,9 @@
 # XrmQueryTyped compatibility project
 
 `typings/account.d.ts` and `typings/contact.d.ts` are `XrmQueryTyped.Core` output, copied verbatim
-from `test/XrmQueryTyped.Core.Tests/Fixtures/`. `typings/enums.d.ts` is what the option-set generator
-emits for `account_accountcategorycode`. `typings/stubs.d.ts` stands in for the two entities that
+from `test/XrmQueryTyped.Core.Tests/Fixtures/`. `typings/enums.d.ts` and `typings/OptionSets.ts` are what the option-set generator
+emits for `account_accountcategorycode`: an ambient numeric union for generated declarations and an
+importable `as const` value object for named values at runtime. `typings/stubs.d.ts` stands in for the two entities that
 `account.d.ts` reaches through its polymorphic `ownerid` lookup — a real run generates those the same
 way.
 
@@ -27,9 +28,5 @@ which collides with `tests/fixtures/entities.d.ts` in the root project — hence
   generator has the same limitation.
 - **Expanded children are non-optional.** `_Result` members are `T | null` rather than
   `T?: T | null`, so accessing a member of an expanded child no longer includes `undefined`.
-- **Option sets are union types, not `const enum`s.** `account_accountcategorycode` is `1 | 2` with
-  the labels in a JSDoc block; named member access (`account_accountcategorycode.Standard`) is gone,
-  because an ambient `const enum` is unusable under `isolatedModules` and a `.d.ts` cannot provide a
-  runtime value.
 - **No `_Base`, `_Relationships` or `"@odata.etag"`.** Base members are inlined into `_Result`; the
   runtime never referenced the other two.

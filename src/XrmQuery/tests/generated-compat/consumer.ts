@@ -11,6 +11,7 @@
  */
 
 import { Filter, SortOrder, XrmQuery } from "@delegateas/xrmquery";
+import { account_accountcategorycode } from "./typings/OptionSets";
 
 /** Compile-time assertion that `Actual` is exactly `Expected`. */
 type Equals<A, B> =
@@ -58,7 +59,7 @@ async function filtering() {
       Filter.ands([
         Filter.startsWith(x.name, "Contoso"),
         Filter.greaterThan(x.revenue, 1000),
-        Filter.notEquals(x.accountcategorycode, 1 as account_accountcategorycode),
+        Filter.notEquals(x.accountcategorycode, account_accountcategorycode.PreferredCustomer),
         Filter.equals(x.parentaccountid_guid, Filter.makeGuid(guid)),
         Filter.equals(x.merged, false),
       ]),

@@ -1,15 +1,15 @@
-declare namespace Form.{{ EntityLogicalName }}.{{ FormTypeName }} {
+declare namespace Form.{{ EntityLogicalName }}{{ if FormTypeName != "" }}.{{ FormTypeName }}{{ end }} {
   namespace {{ FormName }} {
     namespace Tabs {
 {{~ for tab in Tabs ~}}
-      interface {{ tab.Name }} extends Xrm.SectionCollectionBase {
+      interface {{ tab.Identifier }} extends XDTForm.SectionCollectionBase {
 {{~ for section in tab.Sections ~}}
-        get(name: "{{ section.Name }}"): Xrm.PageSection;
+        get(name: "{{ section.Name }}"): Xrm.Controls.Section;
 {{~ end ~}}
-        get(name: string): undefined;
-        get(): Xrm.PageSection[];
-        get(index: number): Xrm.PageSection;
-        get(chooser: (item: Xrm.PageSection, index: number) => boolean): Xrm.PageSection[];
+        get(name: string): null;
+        get(): Xrm.Controls.Section[];
+        get(index: number): Xrm.Controls.Section;
+        get(chooser: (item: Xrm.Controls.Section, index: number) => boolean): Xrm.Controls.Section[];
       }
 {{~ if !for.last ~}}
 
@@ -17,54 +17,79 @@ declare namespace Form.{{ EntityLogicalName }}.{{ FormTypeName }} {
 {{~ end ~}}
     }
 
-    interface Attributes extends Xrm.AttributeCollectionBase {
+{{~ if !IsQuickView ~}}
+    interface Attributes extends XDTForm.AttributeCollectionBase {
 {{~ for attr in Attributes ~}}
       get(name: "{{ attr.FieldName }}"): {{ attr.AttributeType }};
 {{~ end ~}}
-      get(name: string): undefined;
-      get(): Xrm.Attribute<any>[];
-      get(index: number): Xrm.Attribute<any>;
-      get(chooser: (item: Xrm.Attribute<any>, index: number) => boolean): Xrm.Attribute<any>[];
+      get(name: string): null;
+      get(): Xrm.Attributes.Attribute[];
+      get(index: number): Xrm.Attributes.Attribute;
+      get(chooser: (item: Xrm.Attributes.Attribute, index: number) => boolean): Xrm.Attributes.Attribute[];
     }
 
-    interface Controls extends Xrm.ControlCollectionBase {
+{{~ end ~}}
+
+{{~ if GenerateMappings ~}}
+    interface AttributeValueMap {
+{{~ for attr in Attributes ~}}
+      "{{ attr.FieldName }}": {{ attr.ValueType }};
+{{~ end ~}}
+    }
+
+{{~ end ~}}
+    interface Controls extends XDTForm.ControlCollectionBase {
 {{~ for ctrl in Controls ~}}
       get(name: "{{ ctrl.ControlId }}"): {{ ctrl.ControlType }};
 {{~ end ~}}
-      get(name: string): undefined;
-      get(): Xrm.BaseControl[];
-      get(index: number): Xrm.BaseControl;
-      get(chooser: (item: Xrm.BaseControl, index: number) => boolean): Xrm.BaseControl[];
+      get(name: string): null;
+      get(): Xrm.Controls.Control[];
+      get(index: number): Xrm.Controls.Control;
+      get(chooser: (item: Xrm.Controls.Control, index: number) => boolean): Xrm.Controls.Control[];
     }
 
-    interface QuickViewForms extends Xrm.QuickViewFormCollectionBase {
-      get(name: string): undefined;
-      get(): Xrm.QuickViewFormBase[];
-      get(index: number): Xrm.QuickViewFormBase;
-      get(chooser: (item: Xrm.QuickViewFormBase, index: number) => boolean): Xrm.QuickViewFormBase[];
-    }
-
-    interface Tabs extends Xrm.TabCollectionBase {
-{{~ for tab in Tabs ~}}
-      get(name: "{{ tab.Name }}"): Xrm.PageTab<Tabs.{{ tab.Name }}>;
+{{~ if GenerateMappings ~}}
+    interface ControlMap {
+{{~ for ctrl in Controls ~}}
+      "{{ ctrl.ControlId }}": {{ ctrl.ControlType }};
 {{~ end ~}}
-      get(name: string): undefined;
-      get(): Xrm.PageTab<Xrm.Collection<Xrm.PageSection>>[];
-      get(index: number): Xrm.PageTab<Xrm.Collection<Xrm.PageSection>>;
-      get(chooser: (item: Xrm.PageTab<Xrm.Collection<Xrm.PageSection>>, index: number) => boolean): Xrm.PageTab<Xrm.Collection<Xrm.PageSection>>[];
+    }
+
+{{~ end ~}}
+{{~ if !IsQuickView ~}}
+    interface QuickViewForms extends XDTForm.QuickViewFormCollectionBase {
+{{~ for quick_view in QuickViewForms ~}}
+      get(name: "{{ quick_view.ControlId }}"): {{ quick_view.FormType }};
+{{~ end ~}}
+      get(name: string): null;
+      get(): XDTForm.QuickViewFormBase[];
+      get(index: number): XDTForm.QuickViewFormBase;
+      get(chooser: (item: XDTForm.QuickViewFormBase, index: number) => boolean): XDTForm.QuickViewFormBase[];
+    }
+
+{{~ end ~}}
+
+    interface Tabs extends XDTForm.TabCollectionBase {
+{{~ for tab in Tabs ~}}
+      get(name: "{{ tab.Name }}"): XDTForm.PageTab<Tabs.{{ tab.Identifier }}>;
+{{~ end ~}}
+      get(name: string): null;
+      get(): Xrm.Controls.Tab[];
+      get(index: number): Xrm.Controls.Tab;
+      get(chooser: (item: Xrm.Controls.Tab, index: number) => boolean): Xrm.Controls.Tab[];
     }
   }
 
-  interface {{ FormName }} extends Xrm.PageBase<{{ FormName }}.Attributes,{{ FormName }}.Tabs,{{ FormName }}.Controls,{{ FormName }}.QuickViewForms> {
+  interface {{ FormName }} extends {{ if IsQuickView }}XDTForm.QuickViewForm<{{ FormName }}.Tabs,{{ FormName }}.Controls>{{ else }}XDTForm.FormContextBase<{{ FormName }}.Attributes,{{ FormName }}.Tabs,{{ FormName }}.Controls,{{ FormName }}.QuickViewForms>{{ end }} {
 {{~ for attr in Attributes ~}}
     getAttribute(attributeName: "{{ attr.FieldName }}"): {{ attr.AttributeType }};
 {{~ end ~}}
-    getAttribute(attributeName: string): undefined;
-    getAttribute(delegateFunction: Xrm.Collection.MatchingDelegate<Xrm.Attribute<any>>): Xrm.Attribute<any>[];
+    getAttribute(attributeName: string): null;
+    getAttribute(delegateFunction: Xrm.Collection.MatchingDelegate<Xrm.Attributes.Attribute>): Xrm.Attributes.Attribute[];
 {{~ for ctrl in Controls ~}}
     getControl(controlName: "{{ ctrl.ControlId }}"): {{ ctrl.ControlType }};
 {{~ end ~}}
-    getControl(controlName: string): undefined;
-    getControl(delegateFunction: Xrm.Collection.MatchingDelegate<Xrm.Control<any>>): Xrm.Control<any>[];
+    getControl(controlName: string): null;
+    getControl(delegateFunction: Xrm.Collection.MatchingDelegate<Xrm.Controls.Control>): Xrm.Controls.Control[];
   }
 }

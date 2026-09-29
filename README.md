@@ -35,6 +35,19 @@ git tag xrmquery-v0.1.0 && git push origin xrmquery-v0.1.0    # -> npm
 
 ## Installation
 
+The generated declarations build on the community-maintained standard Xrm declarations and the
+modern XrmQuery package instead of shipping a private copy of the full client API surface:
+
+```bash
+npm install --save-dev @types/xrm
+npm install @delegateas/xrmquery
+```
+
+When form generation is enabled, XDT emits `_internal/XrmDefinitelyTyped.d.ts`. This is a small,
+generator-owned augmentation layer over `@types/xrm` that carries the additional precision XDT can
+provide: lookup target unions, typed form collections, concrete quick-view forms, and typed option
+set controls. It does not redeclare the complete `Xrm` namespace.
+
 ## Configuration
 
 ## Usage
@@ -48,8 +61,21 @@ xdt -o typings --generate web       # web entity types for @delegateas/xrmquery 
 ```
 
 Web entity types land in `typings/Web/<entity>.d.ts` (or a single `typings/Web/WebEntities.d.ts` with
-`--single-file`) inside the `XDT` namespace, overridable with `--web-namespace`. Option-set types are
-written to `typings/_internal/Enum/` by whichever generator needs them.
+`--single-file`) inside the `XDT` namespace, overridable with `--web-namespace`. Option-set numeric
+union declarations are written to `typings/_internal/Enum/` by whichever generator needs them.
+
+Named option-set values are emitted as modern `as const` runtime objects in `typings/OptionSets.ts`:
+
+```typescript
+import { ctx_subscription_statuscode } from "./typings/OptionSets";
+
+const status: ctx_subscription_statuscode = ctx_subscription_statuscode.Active;
+```
+
+Importing the object provides discoverable named values while its same-named type remains the exact
+union of the Dataverse numeric values. Unlike an ambient `const enum`, this works with
+`isolatedModules` and module-based transpilers. Because it is a runtime value, the generated module
+must be imported by application code that uses its members.
 
 ## Configuration Options
 
