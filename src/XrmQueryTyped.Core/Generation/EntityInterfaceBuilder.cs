@@ -29,7 +29,7 @@ internal static class EntityInterfaceBuilder
 
         return
         [
-            new(InterfaceNames.Fixed(name), string.Empty, [new(entity.PrimaryIdAttribute, string.Empty, "string")]),
+            new(InterfaceNames.Fixed(name), string.Empty, string.IsNullOrEmpty(entity.PrimaryIdAttribute) ? [] : [new(entity.PrimaryIdAttribute, string.Empty, "string")]),
             new(InterfaceNames.Result(name), $" extends {InterfaceNames.Fixed(name)}", BuildResultMembers(entity, resultRelationships)),
             new(InterfaceNames.FormattedResult(name), string.Empty, BuildFormattedResultMembers(entity)),
             new(InterfaceNames.Select(name), string.Empty, BuildSelectMembers(entity)),

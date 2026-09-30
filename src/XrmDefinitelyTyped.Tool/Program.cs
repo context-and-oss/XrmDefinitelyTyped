@@ -36,7 +36,8 @@ try
         GeneratorKinds.Parse(paramsConfig.Generate ?? appSettingsConfig.Generate ?? []),
         new XrmQueryGenerationConfig(
             paramsConfig.WebNamespace ?? appSettingsConfig.WebNamespace ?? "XDT",
-            SingleFile: paramsConfig.SingleFile ?? appSettingsConfig.SingleFile ?? false));
+            SingleFile: paramsConfig.SingleFile ?? appSettingsConfig.SingleFile ?? false,
+            IntersectMapping: paramsConfig.IntersectMapping ?? appSettingsConfig.IntersectMapping));
 
     ConfigValidator.Validate(config);
 

@@ -77,6 +77,32 @@ union of the Dataverse numeric values. Unlike an ambient `const enum`, this work
 `isolatedModules` and module-based transpilers. Because it is a runtime value, the generated module
 must be imported by application code that uses its members.
 
+### Shared entity interfaces
+
+Use `--intersect` (`-i`) to name the common contract of existing entities:
+
+```bash
+xdt -o typings --intersect "ICustomer:account;contact, IActivity:phonecall;email;task"
+```
+
+`ICustomer` represents what accounts and contacts have in common. With both generators enabled,
+this produces shared form types such as `Form.ICustomer.Main.Information` from the common
+controls, attributes, tabs and sections of forms with matching names and form types on every
+member entity, plus `XDT.ICustomer_Select`,
+`XDT.ICustomer_Filter`, `XDT.ICustomer_Result` and the other shared Web API interfaces.
+The ordinary entity and form declarations are still generated.
+
+Shared attribute metadata must have matching TypeScript and attribute types; incompatible fields
+are omitted. Read/create/update permissions are retained only when supported by every entity.
+A shared query contract has no entity set: query the actual `accounts` or `contacts` endpoint,
+not an invented `ICustomer` endpoint. Different primary ID fields are not part of the common contract.
+
+Include the named entities in the metadata selection (`--entities` / `--solutions`) if you filter it.
+Missing entity metadata causes an error rather than silently using only some member entities.
+Unmatched forms and matched forms with no compatible common controls or tabs are omitted.
+An entity without forms does not prevent generation of its shared XrmQuery interfaces.
+Intersection mappings accept entity logical names, not form GUIDs.
+
 ## Configuration Options
 
 ## Features

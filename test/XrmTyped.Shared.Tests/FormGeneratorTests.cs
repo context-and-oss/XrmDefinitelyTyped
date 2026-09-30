@@ -110,34 +110,66 @@ public sealed class FormGeneratorTests
     }
 
     [Fact]
-    public void Generate_EmitsMappingsAndConfiguredFormIntersection()
+    public void Generate_EntityIntersectionsMatchFormsAndIgnoreUnmatchedForms()
     {
-        var firstId = Guid.NewGuid();
-        var secondId = Guid.NewGuid();
-        var sharedControl = new ControlModel("name", "name", "4273EDBD-AC1D-40D3-9FB2-095C621B552D");
+        var common = new ControlModel("name", "name", "4273EDBD-AC1D-40D3-9FB2-095C621B552D");
+        var accountOnly = common with { Id = "accountonly", DataFieldName = "accountonly" };
         var forms = new[]
         {
-            new FormModel(firstId, "account", "One", FormType.Main,
-                [new TabModel("general", "General", [new SectionModel("details", "Details", [sharedControl])])]),
-            new FormModel(secondId, "account", "Two", FormType.Main,
-                [new TabModel("general", "General", [new SectionModel("details", "Details", [sharedControl])])]),
+            new FormModel(Guid.NewGuid(), "account", "Information", FormType.Main, [], [common, accountOnly]),
+            new FormModel(Guid.NewGuid(), "account", "Unmatched", FormType.Main, [], [accountOnly]),
+            new FormModel(Guid.NewGuid(), "contact", "Information", FormType.Main, [],
+                [common, common with { Id = "header_process_name", CanBeNull = true, IsBusinessProcessFlow = true }]),
+            new FormModel(Guid.NewGuid(), "account", "Quick", FormType.QuickCreate, [], [common]),
+            new FormModel(Guid.NewGuid(), "contact", "Quick", FormType.QuickCreate, [], [common]),
         };
-        var entity = new EntityModel(
-            1, "Account", "account", "accounts", "accountid",
-            [new AttributeModel("Name", "name", "string", SpecialAttributeType.Default, [], true, true, true)], [], []);
-        var config = new XdtGenerationConfig(
-            new Dictionary<string, IReadOnlyList<string>>
-            {
-                ["SharedAccount"] = [firstId.ToString(), secondId.ToString()],
-            },
-            GenerateMappings: true);
-
-        var files = new FormGenerator().Generate(forms, [entity], config);
-        var intersection = Assert.Single(files, file => file.Filename == Path.Combine("Form", "_special", "SharedAccount.d.ts"));
-
-        Assert.Contains("declare namespace Form._special", intersection.Content, StringComparison.Ordinal);
-        Assert.Contains("interface AttributeValueMap", intersection.Content, StringComparison.Ordinal);
-        Assert.Contains("\"name\": string;", intersection.Content, StringComparison.Ordinal);
+        var (account, contact) = CustomerEntities();
+        var files = new FormGenerator().Generate(forms, [account, contact], CustomerConfig());
+        var intersection = Assert.Single(files, file => file.Filename == Path.Combine("Form", "ICustomer", "Main", "Information.d.ts"));
+        Assert.Contains("declare namespace Form.ICustomer.Main", intersection.Content, StringComparison.Ordinal);
+        Assert.Contains("\"name\": string | null;", intersection.Content, StringComparison.Ordinal);
         Assert.Contains("interface ControlMap", intersection.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("accountonly", intersection.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("any", intersection.Content, StringComparison.Ordinal);
+        Assert.Contains(files, file => file.Filename == Path.Combine("Form", "ICustomer", "QuickCreate", "Quick.d.ts"));
+        Assert.DoesNotContain(files, file => file.Filename == Path.Combine("Form", "ICustomer", "Main", "Unmatched.d.ts"));
+        Assert.Equal(7, files.Count);
     }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("different-name")]
+    [InlineData("different-type")]
+    [InlineData("no-overlap")]
+    [InlineData("incompatible-metadata")]
+    public void Generate_SkipsFormIntersectionsWithoutCommonShape(string scenario)
+    {
+        var common = new ControlModel("name", "name", "4273EDBD-AC1D-40D3-9FB2-095C621B552D");
+        var first = new FormModel(Guid.NewGuid(), "account", "Information", FormType.Main, [], [common]);
+        var second = first with { Id = Guid.NewGuid(), EntityLogicalName = "contact" };
+        second = scenario switch
+        {
+            "different-name" => second with { Name = "Other" },
+            "different-type" => second with { FormType = FormType.QuickCreate },
+            "no-overlap" => second with { AdditionalControls = [common with { Id = "other", DataFieldName = "other" }] },
+            _ => second,
+        };
+        var (account, contact) = CustomerEntities();
+        if (scenario == "incompatible-metadata")
+            contact = contact with { Attributes = [contact.Attributes[0] with { TypeScriptType = "number" }] };
+        FormModel[] forms = scenario == "missing" ? [first] : [first, second];
+        var files = new FormGenerator().Generate(forms, [account, contact], CustomerConfig());
+        Assert.Equal(forms.Length, files.Count);
+        Assert.DoesNotContain(files, file => file.Filename.StartsWith(Path.Combine("Form", "ICustomer"), StringComparison.Ordinal));
+    }
+
+    private static (EntityModel Account, EntityModel Contact) CustomerEntities()
+    {
+        var attribute = new AttributeModel("Name", "name", "string", SpecialAttributeType.Default, [], true, true, true);
+        var account = new EntityModel(1, "Account", "account", "accounts", "accountid", [attribute], [], []);
+        return (account, account with { SchemaName = "Contact", LogicalName = "contact", EntitySetName = "contacts", PrimaryIdAttribute = "contactid" });
+    }
+
+    private static XdtGenerationConfig CustomerConfig() => new(
+        new Dictionary<string, IReadOnlyList<string>> { ["ICustomer"] = ["account", "contact"] }, GenerateMappings: true);
 }

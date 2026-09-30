@@ -37,7 +37,7 @@ Here is the full list of arguments for configuring the tool:
 | oneFile           | of          | Set to true if all the dynamic parts of the generated declarations should be put into a single file.
 | skipForms         | sf          | Set to true to skip generation of form declaration files.
 | skipInactiveForms | sif         | Set to true to avoid generating types for inactive forms.
-| formIntersect     | fi          | Comma-separated list of named semicolon-separated lists of form GUIDs that should be intersected. Example: <br /> <code>MyAccountIntersect: 284FF02B-BDD1-4BB0-9BCF-6CFDBDA130D4;16068A3B-D428-4430-AEF6-397CE2AEFE07, MyContactIntersect: F4B3397C-C1A5-40BE-89DD-CEA5F7064D1D;824CFA3C-3EB4-4746-BA3C-7F1DFCA114C0</code>
+| intersect         | i           | Comma-separated list of named semicolon-separated lists of entity logical names to intersect into shared form and XrmQuery interfaces. Example: <code>ICustomer:account;contact, IActivity:phonecall;email;task</code>. Only matching forms with compatible overlap are emitted; mappings accept entity logical names, not form GUIDs.
 | useconfig         | uc          | Also applies the arguments found in the `.config` file.
 
 You can also view this list of arguments using the "***/help***" argument.

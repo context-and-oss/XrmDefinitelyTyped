@@ -18,7 +18,8 @@ public sealed class EntityTypesGenerator
 
     public IReadOnlyList<GeneratedFile> Generate(IReadOnlyList<EntityModel> entities, XrmQueryGenerationConfig config)
     {
-        var rendered = entities
+        var intersections = EntityIntersectionBuilder.Build(entities, config.IntersectMapping ?? new Dictionary<string, IReadOnlyList<string>>());
+        var rendered = entities.Concat(intersections)
             .OrderBy(entity => entity.LogicalName, StringComparer.Ordinal)
             .Select(entity => (entity.LogicalName, Content: TemplateRenderer.Render(Template, BuildViewModel(entity, config))))
             .ToArray();

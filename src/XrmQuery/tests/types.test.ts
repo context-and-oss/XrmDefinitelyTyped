@@ -30,6 +30,35 @@ describe("inference", () => {
     }>();
   });
 
+  it("accepts shared selectors only for compatible entity contracts", () => {
+    interface SharedSelect {
+      emailaddress1: WebAttribute<SharedSelect, { emailaddress1: string | null }, object>;
+      telephone1: WebAttribute<SharedSelect, { telephone1: string | null }, object>;
+    }
+    const shared = (x: SharedSelect) => [x.emailaddress1, x.telephone1] as const;
+    const query = XrmQuery.retrieveMultiple(x => x.accounts).select(shared);
+    expectTypeOf<ResultOfQuery<typeof query>>().toExtend<{
+      accountid: string;
+      emailaddress1: string | null;
+      telephone1: string | null;
+    }[]>();
+    const record = XrmQuery.retrieve(x => x.accounts, "ID").select(shared).selectMore(x => [x.revenue]);
+    expectTypeOf<ResultOfQuery<typeof record>>().toExtend<{
+      accountid: string;
+      emailaddress1: string | null;
+      telephone1: string | null;
+      revenue: number | null;
+    }>();
+    interface UnrelatedSelect {
+      missing: WebAttribute<UnrelatedSelect, { missing: string }, object>;
+    }
+    const unrelated = (x: UnrelatedSelect) => [x.missing] as const;
+    // @ts-expect-error The account entity does not satisfy this shared contract.
+    query.select(unrelated);
+    // @ts-expect-error selectMore must also reject incompatible contracts.
+    record.selectMore(unrelated);
+  });
+
   it("keeps inferring past the legacy 15-attribute overload cap", () => {
     const query = XrmQuery.retrieveMultiple((x) => x.accounts).select((x) => [
       x.accountid,

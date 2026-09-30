@@ -29,10 +29,11 @@ public sealed class FormGenerator
         var supportedForms = forms
             .Where(IsSupportedForm)
             .ToList();
-        supportedForms.AddRange(BuildIntersections(supportedForms, config.IntersectMapping));
-        var entitiesByLogicalName = (entities ?? [])
+        var intersectionEntities = EntityIntersectionBuilder.Build(entities ?? [], config.IntersectMapping);
+        supportedForms.AddRange(BuildIntersections(supportedForms, config.IntersectMapping, intersectionEntities));
+        var entitiesByLogicalName = (entities ?? []).Concat(intersectionEntities)
             .ToDictionary(entity => entity.LogicalName, StringComparer.OrdinalIgnoreCase);
-        var formsById = supportedForms.ToDictionary(form => form.Id);
+        var formsById = supportedForms.Where(form => !form.IsIntersection).ToDictionary(form => form.Id);
 
         return RenameDuplicateForms(supportedForms)
             .Select(namedForm => GenerateFormFile(
@@ -51,33 +52,44 @@ public sealed class FormGenerator
 
     private static IEnumerable<FormModel> BuildIntersections(
         IReadOnlyList<FormModel> forms,
-        IReadOnlyDictionary<string, IReadOnlyList<string>> mappings)
+        IReadOnlyDictionary<string, IReadOnlyList<string>> mappings,
+        IReadOnlyList<EntityModel> intersectionEntities)
     {
-        var byId = forms.ToDictionary(form => form.Id);
+        var metadataByName = intersectionEntities.ToDictionary(entity => entity.LogicalName, StringComparer.Ordinal);
         foreach (var mapping in mappings.OrderBy(mapping => mapping.Key, StringComparer.Ordinal))
         {
-            var selected = mapping.Value
-                .Select(value => Guid.TryParse(value, out var id) && byId.TryGetValue(id, out var form) ? form : null)
-                .OfType<FormModel>()
-                .ToList();
-            if (selected.Count == 0)
-            {
-                Console.Error.WriteLine($"Warning: no forms were found for intersection '{mapping.Key}'.");
-                continue;
-            }
+            var entityNames = mapping.Value.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var sharedAttributes = metadataByName[mapping.Key].Attributes
+                .Select(attribute => attribute.LogicalName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var matchingForms = forms
+                .Where(form => entityNames.Contains(form.EntityLogicalName))
+                .GroupBy(form => (form.FormType, Name: TypeScriptIdentifier.RemoveInvalidCharacters(form.Name)))
+                .OrderBy(group => group.Key.FormType)
+                .ThenBy(group => group.Key.Name, StringComparer.Ordinal);
 
-            var commonControls = IntersectControls(selected);
-            var commonTabs = IntersectTabs(selected);
-            var metadataEntity = selected.Select(form => form.EntityLogicalName).Distinct(StringComparer.OrdinalIgnoreCase).Take(2).ToArray();
-            yield return new FormModel(
-                Guid.Empty,
-                "_special",
-                mapping.Key,
-                FormType.Other,
-                commonTabs,
-                commonControls,
-                IsIntersection: true,
-                MetadataEntityLogicalName: metadataEntity.Length == 1 ? metadataEntity[0] : null);
+            foreach (var group in matchingForms)
+            {
+                // A form shape must exist on every member entity. Other forms do not participate.
+                if (!entityNames.SetEquals(group.Select(form => form.EntityLogicalName)))
+                    continue;
+                var selected = group.ToList();
+                var commonControls = IntersectControls(selected)
+                    .Where(control => control.DataFieldName is null || sharedAttributes.Contains(control.DataFieldName))
+                    .ToList();
+                var commonTabs = IntersectTabs(selected);
+                if (commonControls.Count == 0 && commonTabs.Count == 0)
+                    continue;
+
+                yield return new FormModel(
+                    Guid.Empty,
+                    mapping.Key,
+                    group.Key.Name,
+                    group.Key.FormType,
+                    commonTabs,
+                    commonControls,
+                    IsIntersection: true,
+                    MetadataEntityLogicalName: mapping.Key);
+            }
         }
     }
 
@@ -89,16 +101,23 @@ public sealed class FormGenerator
             .Concat(form.AdditionalControls ?? []);
         static string Key(ControlModel control) => $"{control.Id}\u001f{control.DataFieldName}\u001f{control.ClassId}";
 
-        var first = AllControls(forms[0]).ToDictionary(Key, StringComparer.Ordinal);
+        var first = AllControls(forms[0]).GroupBy(Key, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
         var common = first.Keys.ToHashSet(StringComparer.Ordinal);
         foreach (var form in forms.Skip(1))
             common.IntersectWith(AllControls(form).Select(Key));
-        return [.. common.Order(StringComparer.Ordinal).Select(key => first[key])];
+        return [.. common.Order(StringComparer.Ordinal).Select(key => first[key] with
+        {
+            CanBeNull = forms.SelectMany(AllControls).Any(control =>
+                control.CanBeNull && (Key(control) == key || first[key].DataFieldName is not null &&
+                    string.Equals(control.DataFieldName, first[key].DataFieldName, StringComparison.OrdinalIgnoreCase))),
+        })];
     }
 
     private static IReadOnlyList<TabModel> IntersectTabs(IReadOnlyList<FormModel> forms)
     {
-        var commonTabNames = forms[0].Tabs.Select(tab => tab.Name).ToHashSet(StringComparer.Ordinal);
+        var commonTabNames = forms[0].Tabs.Select(tab => tab.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name)).ToHashSet(StringComparer.Ordinal);
         foreach (var form in forms.Skip(1))
             commonTabNames.IntersectWith(form.Tabs.Select(tab => tab.Name));
 
@@ -139,9 +158,7 @@ public sealed class FormGenerator
     {
         var viewModel = BuildFormViewModel(form, generatedName, entity, formsById, generateMappings);
         var content = TemplateRenderer.Render(Template, viewModel);
-        var filename = form.IsIntersection
-            ? Path.Combine(OutputDirectory, form.EntityLogicalName, $"{viewModel.FormName}.d.ts")
-            : Path.Combine(OutputDirectory, form.EntityLogicalName, form.FormType.ToString(), $"{viewModel.FormName}.d.ts");
+        var filename = Path.Combine(OutputDirectory, form.EntityLogicalName, form.FormType.ToString(), $"{viewModel.FormName}.d.ts");
         return new GeneratedFile(filename, content);
     }
 
@@ -206,7 +223,7 @@ public sealed class FormGenerator
 
         return new FormViewModel(
             form.EntityLogicalName,
-            form.IsIntersection ? string.Empty : form.FormType.ToString(),
+            form.FormType.ToString(),
             generatedName,
             form.FormType == FormType.Quick,
             generateMappings,

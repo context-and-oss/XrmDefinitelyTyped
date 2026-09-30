@@ -1,3 +1,4 @@
+import type { CompatibleSelection } from "./base.js";
 import { Filter } from "../filter.js";
 import {
   FORMATTED_VALUES_HEADER,
@@ -144,8 +145,8 @@ export class RetrieveMultipleRecords<
 
   /** Selects the attributes to retrieve, replacing any previous selection. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  select<const T extends readonly WebAttribute<ISelect, any, any>[]>(
-    vars: (x: ISelect) => T,
+  select<const T extends readonly WebAttribute<any, any, any>[]>(
+    vars: (x: ISelect) => T & CompatibleSelection<ISelect, T>,
   ): RetrieveMultipleRecords<
     ISelect,
     IExpand,
@@ -161,8 +162,8 @@ export class RetrieveMultipleRecords<
 
   /** Adds more attributes to the current selection. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  selectMore<const T extends readonly WebAttribute<ISelect, any, any>[]>(
-    vars: (x: ISelect) => T,
+  selectMore<const T extends readonly WebAttribute<any, any, any>[]>(
+    vars: (x: ISelect) => T & CompatibleSelection<ISelect, T>,
   ): RetrieveMultipleRecords<
     ISelect,
     IExpand,
