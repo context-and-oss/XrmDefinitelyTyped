@@ -102,6 +102,8 @@ export type FormattedOf<T extends readonly unknown[]> = UnionToIntersection<
 export type CompatibleSelection<S, T extends readonly unknown[]> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [K in keyof T]: T[K] extends WebAttribute<infer A, any, any>
-    ? S extends A ? T[K] : never
+    ? S extends A
+      ? T[K]
+      : never
     : never;
 };

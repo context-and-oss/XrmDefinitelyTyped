@@ -36,13 +36,17 @@ describe("inference", () => {
       telephone1: WebAttribute<SharedSelect, { telephone1: string | null }, object>;
     }
     const shared = (x: SharedSelect) => [x.emailaddress1, x.telephone1] as const;
-    const query = XrmQuery.retrieveMultiple(x => x.accounts).select(shared);
-    expectTypeOf<ResultOfQuery<typeof query>>().toExtend<{
-      accountid: string;
-      emailaddress1: string | null;
-      telephone1: string | null;
-    }[]>();
-    const record = XrmQuery.retrieve(x => x.accounts, "ID").select(shared).selectMore(x => [x.revenue]);
+    const query = XrmQuery.retrieveMultiple((x) => x.accounts).select(shared);
+    expectTypeOf<ResultOfQuery<typeof query>>().toExtend<
+      {
+        accountid: string;
+        emailaddress1: string | null;
+        telephone1: string | null;
+      }[]
+    >();
+    const record = XrmQuery.retrieve((x) => x.accounts, "ID")
+      .select(shared)
+      .selectMore((x) => [x.revenue]);
     expectTypeOf<ResultOfQuery<typeof record>>().toExtend<{
       accountid: string;
       emailaddress1: string | null;
