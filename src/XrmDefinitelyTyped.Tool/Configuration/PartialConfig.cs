@@ -9,5 +9,6 @@ public record PartialConfig(
     bool? SkipInactiveForms,
     bool? SingleFile,
     bool? GenerateCustomApis,
+    bool? GenerateMappings,
     List<string>? Generate,
     string? WebNamespace);

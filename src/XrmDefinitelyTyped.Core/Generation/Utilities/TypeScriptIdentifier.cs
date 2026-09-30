@@ -13,6 +13,15 @@ internal static partial class TypeScriptIdentifier
         return result.Length > 0 && !char.IsLetter(result[0]) ? "_" + result : result;
     }
 
+    public static string RemoveInvalidCharacters(string name)
+    {
+        var result = InvalidCharsRegex().Replace(name, string.Empty);
+        if (result.Length == 0)
+            return "_EmptyString";
+
+        return char.IsAsciiDigit(result[0]) ? $"_{result}" : result;
+    }
+
     public static string ToPascalCase(string name)
     {
         var words = name.Split([' ', '_', '-', '.'], StringSplitOptions.RemoveEmptyEntries);

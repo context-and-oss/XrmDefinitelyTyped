@@ -18,10 +18,40 @@ public sealed class DataverseEntityMetadataFetcher(ServiceClient serviceClient, 
 
         var metadata = entityNames.Count == 0
             ? await FetchAllEntityMetadataAsync()
-            : await FetchEntityMetadataAsync(entityNames);
+            : await FetchEntityMetadataWithDependenciesAsync(entityNames);
 
         var ordered = metadata.OrderBy(entity => entity.LogicalName, StringComparer.Ordinal).ToList();
         return EntityMetadataInterpreter.Interpret(ordered, nameMap, config.LabelMappings);
+    }
+
+
+    private async Task<IReadOnlyList<EntityMetadata>> FetchEntityMetadataWithDependenciesAsync(IReadOnlyList<string> entityNames)
+    {
+        var selected = await FetchEntityMetadataAsync(entityNames);
+        var selectedNames = entityNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var dependencyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (!selectedNames.Contains("activityparty") && selected.Any(entity =>
+            (entity.Attributes ?? []).Any(attribute => attribute.AttributeType == AttributeTypeCode.PartyList)))
+        {
+            dependencyNames.Add("activityparty");
+        }
+
+        foreach (var relationship in selected.SelectMany(entity => entity.ManyToManyRelationships ?? []))
+        {
+            if (selectedNames.Contains(relationship.Entity1LogicalName)
+                && selectedNames.Contains(relationship.Entity2LogicalName)
+                && !selectedNames.Contains(relationship.IntersectEntityName))
+            {
+                dependencyNames.Add(relationship.IntersectEntityName);
+            }
+        }
+
+        if (dependencyNames.Count == 0)
+            return selected;
+
+        var dependencies = await FetchEntityMetadataAsync([.. dependencyNames]);
+        return [.. selected.Concat(dependencies).DistinctBy(entity => entity.LogicalName, StringComparer.OrdinalIgnoreCase)];
     }
 
     private async Task<IReadOnlyList<EntityMetadata>> FetchAllEntityMetadataAsync()

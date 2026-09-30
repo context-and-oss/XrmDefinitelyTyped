@@ -53,11 +53,11 @@ internal static class CommandLineParser
 
         var intersectOption = new Option<Dictionary<string, IReadOnlyList<string>>>("--intersect", "-i")
         {
-            Description = "Comma-separated list of named semicolon-separated lists of entity logical names to intersect. Example: ICustomer:account;contact, IActivity:phonecall;email;task",
+            Description = "Comma-separated list of named semicolon-separated lists of entity logical names to intersect into shared interfaces for forms and XrmQuery. Example: ICustomer:account;contact, IActivity:phonecall;email;task",
             AllowMultipleArgumentsPerToken = true,
             CustomParser = result =>
             {
-                var value = result.Tokens.Select(t => t.Value).ToArray();
+                var value = result.Tokens.SelectMany(t => t.Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToArray();
                 var dict = new Dictionary<string, IReadOnlyList<string>>(StringComparer.InvariantCulture);
                 foreach (var entry in value)
                 {
@@ -90,6 +90,11 @@ internal static class CommandLineParser
             Description = "Generate Custom API types (not yet implemented).",
         };
 
+        var mappingsOption = new Option<bool?>("--generate-mappings", "-gm")
+        {
+            Description = "Generate AttributeValueMap and ControlMap interfaces for forms.",
+        };
+
         var generateOption = new Option<string[]>("--generate", "-g")
         {
             Description = $"What to generate: '{GeneratorKinds.FormsValue}', '{GeneratorKinds.WebValue}' or both (default).",
@@ -112,6 +117,7 @@ internal static class CommandLineParser
             labelMappingsOption,
             singleFileOption,
             customApisOption,
+            mappingsOption,
             generateOption,
             webNamespaceOption,
         };
@@ -130,6 +136,7 @@ internal static class CommandLineParser
             result.GetValue(skipInactiveOption),
             result.GetValue(singleFileOption),
             result.GetValue(customApisOption),
+            result.GetValue(mappingsOption),
             AsList(result.GetValue(generateOption)),
             result.GetValue(webNamespaceOption));
     }

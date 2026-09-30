@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\XrmTyped.Shared\XrmTyped.Shared.csproj" />
+    <ProjectReference Include="..\..\src\XrmDefinitelyTyped.Core\XrmDefinitelyTyped.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

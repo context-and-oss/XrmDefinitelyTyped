@@ -97,3 +97,13 @@ export type ResultOf<T extends readonly unknown[]> = UnionToIntersection<
 export type FormattedOf<T extends readonly unknown[]> = UnionToIntersection<
   AttributeFormatted<T[number]>
 >;
+
+/** Allows a shared selector only when the queried entity satisfies its attribute contract. */
+export type CompatibleSelection<S, T extends readonly unknown[]> = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [K in keyof T]: T[K] extends WebAttribute<infer A, any, any>
+    ? S extends A
+      ? T[K]
+      : never
+    : never;
+};

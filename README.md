@@ -35,6 +35,19 @@ git tag xrmquery-v0.1.0 && git push origin xrmquery-v0.1.0    # -> npm
 
 ## Installation
 
+The generated declarations build on the community-maintained standard Xrm declarations and the
+modern XrmQuery package instead of shipping a private copy of the full client API surface:
+
+```bash
+npm install --save-dev @types/xrm
+npm install @delegateas/xrmquery
+```
+
+When form generation is enabled, XDT emits `_internal/XrmDefinitelyTyped.d.ts`. This is a small,
+generator-owned augmentation layer over `@types/xrm` that carries the additional precision XDT can
+provide: lookup target unions, typed form collections, concrete quick-view forms, and typed option
+set controls. It does not redeclare the complete `Xrm` namespace.
+
 ## Configuration
 
 ## Usage
@@ -48,8 +61,47 @@ xdt -o typings --generate web       # web entity types for @delegateas/xrmquery 
 ```
 
 Web entity types land in `typings/Web/<entity>.d.ts` (or a single `typings/Web/WebEntities.d.ts` with
-`--single-file`) inside the `XDT` namespace, overridable with `--web-namespace`. Option-set types are
-written to `typings/_internal/Enum/` by whichever generator needs them.
+`--single-file`) inside the `XDT` namespace, overridable with `--web-namespace`. Option-set numeric
+union declarations are written to `typings/_internal/Enum/` by whichever generator needs them.
+
+Named option-set values are emitted as modern `as const` runtime objects in `typings/OptionSets.ts`:
+
+```typescript
+import { ctx_subscription_statuscode } from "./typings/OptionSets";
+
+const status: ctx_subscription_statuscode = ctx_subscription_statuscode.Active;
+```
+
+Importing the object provides discoverable named values while its same-named type remains the exact
+union of the Dataverse numeric values. Unlike an ambient `const enum`, this works with
+`isolatedModules` and module-based transpilers. Because it is a runtime value, the generated module
+must be imported by application code that uses its members.
+
+### Shared entity interfaces
+
+Use `--intersect` (`-i`) to name the common contract of existing entities:
+
+```bash
+xdt -o typings --intersect "ICustomer:account;contact, IActivity:phonecall;email;task"
+```
+
+`ICustomer` represents what accounts and contacts have in common. With both generators enabled,
+this produces shared form types such as `Form.ICustomer.Main.Information` from the common
+controls, attributes, tabs and sections of forms with matching names and form types on every
+member entity, plus `XDT.ICustomer_Select`,
+`XDT.ICustomer_Filter`, `XDT.ICustomer_Result` and the other shared Web API interfaces.
+The ordinary entity and form declarations are still generated.
+
+Shared attribute metadata must have matching TypeScript and attribute types; incompatible fields
+are omitted. Read/create/update permissions are retained only when supported by every entity.
+A shared query contract has no entity set: query the actual `accounts` or `contacts` endpoint,
+not an invented `ICustomer` endpoint. Different primary ID fields are not part of the common contract.
+
+Include the named entities in the metadata selection (`--entities` / `--solutions`) if you filter it.
+Missing entity metadata causes an error rather than silently using only some member entities.
+Unmatched forms and matched forms with no compatible common controls or tabs are omitted.
+An entity without forms does not prevent generation of its shared XrmQuery interfaces.
+Intersection mappings accept entity logical names, not form GUIDs.
 
 ## Configuration Options
 

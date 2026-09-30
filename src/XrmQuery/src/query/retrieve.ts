@@ -1,3 +1,4 @@
+import type { CompatibleSelection } from "./base.js";
 import { FORMATTED_VALUES_HEADER, INCLUDE_ANNOTATIONS_HEADER } from "../headers.js";
 import { idToString, type RecordId } from "../id.js";
 import type { RawResponse } from "../http.js";
@@ -64,8 +65,8 @@ export class RetrieveRecord<
 
   /** Selects the attributes to retrieve, replacing any previous selection. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  select<const T extends readonly WebAttribute<ISelect, any, any>[]>(
-    varFunc: (x: ISelect) => T,
+  select<const T extends readonly WebAttribute<any, any, any>[]>(
+    varFunc: (x: ISelect) => T & CompatibleSelection<ISelect, T>,
   ): RetrieveRecord<ISelect, IExpand, IFixed, FormattedOf<T>, IFixed & ResultOf<T>> {
     this.selects = parseSelects(varFunc as (x: never) => readonly unknown[]);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,8 +75,8 @@ export class RetrieveRecord<
 
   /** Adds more attributes to the current selection. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  selectMore<const T extends readonly WebAttribute<ISelect, any, any>[]>(
-    varFunc: (x: ISelect) => T,
+  selectMore<const T extends readonly WebAttribute<any, any, any>[]>(
+    varFunc: (x: ISelect) => T & CompatibleSelection<ISelect, T>,
   ): RetrieveRecord<
     ISelect,
     IExpand,

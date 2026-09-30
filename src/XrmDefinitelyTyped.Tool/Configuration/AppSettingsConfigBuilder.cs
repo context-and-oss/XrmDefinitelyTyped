@@ -25,6 +25,7 @@ public static class AppSettingsConfigBuilder
             configSection.GetValue<bool?>("SkipInactiveForms"),
             configSection.GetValue<bool?>("SingleFile"),
             configSection.GetValue<bool?>("GenerateCustomApis"),
+            configSection.GetValue<bool?>("GenerateMappings"),
             configSection.GetSection("Generate").Get<List<string>>(),
             configSection.GetValue<string>("WebNamespace"));
     }
