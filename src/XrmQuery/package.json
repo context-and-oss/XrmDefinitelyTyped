@@ -15,12 +15,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/delegateas/XrmDefinitelyTyped.git",
+    "url": "git+https://github.com/context-and-oss/XrmDefinitelyTyped.git",
     "directory": "src/XrmQuery"
   },
-  "homepage": "https://github.com/delegateas/XrmDefinitelyTyped/tree/main/src/XrmQuery#readme",
+  "homepage": "https://github.com/context-and-oss/XrmDefinitelyTyped/tree/main/src/XrmQuery#readme",
   "bugs": {
-    "url": "https://github.com/delegateas/XrmDefinitelyTyped/issues"
+    "url": "https://github.com/context-and-oss/XrmDefinitelyTyped/issues"
   },
   "type": "module",
   "sideEffects": false,
