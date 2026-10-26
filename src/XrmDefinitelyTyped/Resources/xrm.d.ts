@@ -831,9 +831,10 @@
 
   interface SaveOptions {
     /**
-     * Indicates whether to use the "Book" or "Reschedule" messages, rather than the "Create" or "Update" messages.
+     * (Optional) Boolean. Indicate whether to use the Book or Reschedule messages rather than the Create or Update messages.
+     * This option is only applicable when used with appointment, recurring appointment, or service activity records.
      */
-    UseSchedulingEngine: boolean;
+    useSchedulingEngine?: boolean;
   }
 
   interface Then<T> {
