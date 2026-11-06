@@ -108,9 +108,7 @@ public sealed class FormGenerator
             common.IntersectWith(AllControls(form).Select(Key));
         return [.. common.Order(StringComparer.Ordinal).Select(key => first[key] with
         {
-            CanBeNull = forms.SelectMany(AllControls).Any(control =>
-                control.CanBeNull && (Key(control) == key || first[key].DataFieldName is not null &&
-                    string.Equals(control.DataFieldName, first[key].DataFieldName, StringComparison.OrdinalIgnoreCase))),
+            CanBeNull = forms.SelectMany(AllControls).Any(control => control.CanBeNull && Key(control) == key),
         })];
     }
 
@@ -191,12 +189,14 @@ public sealed class FormGenerator
                 var control = group.First();
                 metadataByLogicalName.TryGetValue(group.Key, out var metadata);
                 var attributeType = ResolveAttributeType(control, metadata);
+                // The attribute is only missing at runtime if every control bound to it can be missing.
+                var canBeNull = group.All(item => item.CanBeNull);
                 return attributeType is null
                     ? null
                     : new AttributeViewModel(
                         group.Key,
-                        Nullable(attributeType, group.Any(item => item.CanBeNull)),
-                        Nullable(ResolveValueType(metadata), group.Any(item => item.CanBeNull)));
+                        Nullable(attributeType, canBeNull),
+                        Nullable(ResolveValueType(metadata), canBeNull));
             })
             .OfType<AttributeViewModel>()
             .OrderBy(attribute => attribute.FieldName, StringComparer.OrdinalIgnoreCase)

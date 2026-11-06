@@ -66,6 +66,7 @@ public sealed class FormGeneratorTests
         Assert.Contains("Xrm.Attributes.MultiSelectOptionSetAttribute<ctx_sample_ctx_tags>", file.Content, StringComparison.Ordinal);
         Assert.Contains("XDTForm.MultiSelectOptionSetControl<ctx_sample_ctx_tags>", file.Content, StringComparison.Ordinal);
     }
+
     [Fact]
     public void Generate_SkipsUnsupportedFormsAndEmptyTabNames()
     {
@@ -80,6 +81,7 @@ public sealed class FormGeneratorTests
         Assert.DoesNotContain("interface  extends", file.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("Tabs.>", file.Content, StringComparison.Ordinal);
     }
+
     [Fact]
     public void Generate_QuickViewUsesQuickViewFormShape()
     {
@@ -93,6 +95,7 @@ public sealed class FormGeneratorTests
         Assert.DoesNotContain("interface Attributes extends", file.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("interface QuickViewForms extends", file.Content, StringComparison.Ordinal);
     }
+
     [Fact]
     public void Generate_RenamesDuplicateControlsAndPreservesNullability()
     {
@@ -107,6 +110,23 @@ public sealed class FormGeneratorTests
 
         Assert.Contains("get(name: \"header_process_name\"): Xrm.Controls.StringControl | null", file.Content, StringComparison.Ordinal);
         Assert.Contains("get(name: \"header_process_name_1\"): Xrm.Controls.StringControl | null", file.Content, StringComparison.Ordinal);
+        Assert.Contains("getAttribute(attributeName: \"name\"): Xrm.Attributes.Attribute<string> | null;", file.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_AttributeOnBodyAndBpfIsNotNullable()
+    {
+        var body = new ControlModel("name", "name", "4273EDBD-AC1D-40D3-9FB2-095C621B552D");
+        var header = body with { Id = "header_process_name", CanBeNull = true, IsBusinessProcessFlow = true };
+        var form = new FormModel(
+            Guid.NewGuid(), "account", "Information", FormType.Main,
+            [new TabModel("general", "General", [new SectionModel("details", "Details", [body])])],
+            [header]);
+
+        var file = Assert.Single(new FormGenerator().Generate([form]));
+
+        Assert.Contains("getAttribute(attributeName: \"name\"): Xrm.Attributes.Attribute<string>;", file.Content, StringComparison.Ordinal);
+        Assert.Contains("getControl(controlName: \"header_process_name\"): Xrm.Controls.StringControl | null;", file.Content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -127,7 +147,7 @@ public sealed class FormGeneratorTests
         var files = new FormGenerator().Generate(forms, [account, contact], CustomerConfig());
         var intersection = Assert.Single(files, file => file.Filename == Path.Combine("Form", "ICustomer", "Main", "Information.d.ts"));
         Assert.Contains("declare namespace Form.ICustomer.Main", intersection.Content, StringComparison.Ordinal);
-        Assert.Contains("\"name\": string | null;", intersection.Content, StringComparison.Ordinal);
+        Assert.Contains("\"name\": string;", intersection.Content, StringComparison.Ordinal);
         Assert.Contains("interface ControlMap", intersection.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("accountonly", intersection.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("any", intersection.Content, StringComparison.Ordinal);
